@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel de automacao</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+</head>
+<body>
+
+<!-- =====================================================================
+     PAGINA 1: O LOGIN
+     ===================================================================== -->
+<div id="telaLogin">
+  <div class="caixa-login">
+    <div class="marca-login">💬</div>
+    <h1 style="margin-bottom:5px">Entrar</h1>
+    <p class="subtitulo" style="margin-bottom:22px">Acesse o seu painel de automacao</p>
+
+    <form id="formLogin">
+      <div class="campo-grupo">
+        <label class="rotulo" for="loginEmail">E-mail</label>
+        <input class="campo" type="email" id="loginEmail" placeholder="voce@exemplo.com"
+               autocomplete="username" required>
+      </div>
+
+      <div class="campo-grupo">
+        <label class="rotulo" for="loginSenha">Senha</label>
+        <input class="campo" type="password" id="loginSenha" placeholder="Sua senha"
+               autocomplete="current-password" required>
+      </div>
+
+      <div id="loginErro" class="aviso aviso-erro" style="display:none; margin-bottom:14px"></div>
+
+      <button class="btn btn-primario" type="submit" id="btnEntrar"
+              style="width:100%; justify-content:center; padding:10px">
+        Entrar
+      </button>
+    </form>
+
+    <!-- este aviso so aparece quando o site esta em localhost -->
+    <div id="avisoLocal" class="aviso aviso-atencao" style="display:none; margin-top:18px">
+      <strong>Modo de teste local:</strong> qualquer e-mail e uma senha de 5 digitos entram.
+      No ar (producao), o login sera pelo Supabase.
+    </div>
+  </div>
+</div>
+
+
+<!-- =====================================================================
+     PAGINA 2: O SISTEMA (aparece depois de logar)
+     ===================================================================== -->
+<div id="app">
+
+  <!-- o menu lateral -->
+  <nav class="menu">
+    <div class="menu-topo">
+      <div class="menu-marca">💬</div>
+      <div class="menu-nome">Seu painel</div>
+    </div>
+
+    <button class="menu-item ativo" data-secao="inicio">
+      <span class="icone">🏠</span> Inicio
+    </button>
+    <button class="menu-item" data-secao="calendario">
+      <span class="icone">📅</span> Calendario
+    </button>
+    <button class="menu-item" data-secao="instagram">
+      <span class="icone">📸</span> Instagram
+    </button>
+
+    <div class="menu-rodape">
+      <div class="menu-usuario" id="menuUsuario"></div>
+      <button class="menu-item" id="btnSair">
+        <span class="icone">↩</span> Sair
+      </button>
+    </div>
+  </nav>
+
+  <!-- a area de conteudo -->
+  <main class="conteudo">
+    <div id="faixaTeste" class="faixa-teste" style="display:none; margin:-28px -32px 22px">
+      Voce esta no modo de teste local. Pra colocar no ar de verdade (com login e dados
+      salvos), siga o LEIA-ME.
+    </div>
+
+    <!-- ---------------------------------------------------------------
+         SECAO: INICIO
+         --------------------------------------------------------------- -->
+    <section id="secaoInicio">
+      <div class="cabecalho">
+        <h1>Bem-vindo ao seu painel</h1>
+        <p class="subtitulo">Um resumo rapido de como estao as suas automacoes</p>
+      </div>
+
+      <div class="grade-cartoes">
+        <div class="cartao">
+          <span class="rotulo">Leads captados</span>
+          <div class="numerao" id="numLeads">0</div>
+          <p class="ajuda">Pessoas que ja receberam uma DM sua</p>
+        </div>
+        <div class="cartao">
+          <span class="rotulo">Automacoes ativas</span>
+          <div class="numerao" id="numAutomacoes">0</div>
+          <p class="ajuda">Ligadas e prontas pra disparar</p>
+        </div>
+        <div class="cartao">
+          <span class="rotulo">DMs em 7 dias</span>
+          <div class="numerao" id="numDms">0</div>
+          <p class="ajuda">Mensagens enviadas na ultima semana</p>
+        </div>
+      </div>
+
+      <div class="cartao">
+        <h2 style="margin-bottom:4px">Atalhos</h2>
+        <p class="subtitulo" style="margin-bottom:16px">Pra onde voce quer ir agora?</p>
+        <div style="display:flex; gap:9px; flex-wrap:wrap">
+          <button class="btn btn-primario" data-ir="instagram">📸 Ir pro Instagram</button>
+          <button class="btn" data-ir="calendario">📅 Ver o calendario</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------
+         SECAO: CALENDARIO (por enquanto so um "em breve")
+         --------------------------------------------------------------- -->
+    <section id="secaoCalendario" style="display:none">
+      <div class="cabecalho">
+        <h1>Calendario</h1>
+        <p class="subtitulo">Planejamento de conteudo</p>
+      </div>
+
+      <div class="vazio" style="padding:72px 24px">
+        <div class="icone">📅</div>
+        <h3>Calendario</h3>
+        <p>Essa area vai chegar em breve pra voce planejar seus conteudos</p>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------
+         SECAO: INSTAGRAM (o coracao)
+         --------------------------------------------------------------- -->
+    <section id="secaoInstagram" style="display:none">
+      <div class="cabecalho">
+        <h1>Instagram</h1>
+        <p class="subtitulo">Suas metricas e as automacoes de direct</p>
+      </div>
+
+      <div class="abas">
+        <button class="aba ativa" data-aba="metricas">Metricas</button>
+        <button class="aba" data-aba="automacoes">Automacoes</button>
+      </div>
+
+      <!-- sub-aba: metricas -->
+      <div id="painelMetricas"></div>
+
+      <!-- sub-aba: automacoes -->
+      <div id="painelAutomacoes" style="display:none">
+        <div style="display:flex; align-items:center; margin-bottom:16px; gap:12px">
+          <div style="flex:1">
+            <h2>Suas automacoes</h2>
+            <p class="subtitulo">Alguem comenta uma palavra, e a DM sai sozinha</p>
+          </div>
+          <button class="btn btn-primario" id="btnNovaAutomacao">＋ Nova automacao</button>
+        </div>
+        <div id="listaAutomacoes"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+
+<!-- =====================================================================
+     O EDITOR DE AUTOMACAO (tela cheia, com a previa ao vivo do lado)
+     ===================================================================== -->
+<div id="editor">
+  <div class="editor-topo">
+    <button class="btn btn-fantasma" id="btnFecharEditor">← Voltar</button>
+    <div class="titulo" id="editorTitulo">Nova automacao</div>
+    <button class="btn btn-primario" id="btnSalvar">Salvar automacao</button>
+  </div>
+
+  <div class="editor-corpo">
+    <div class="editor-form">
+      <div class="editor-form-interno">
+
+        <div class="linha-campos">
+          <label class="rotulo" for="edNome">Nome da automacao</label>
+          <input class="campo" id="edNome" placeholder="Ex: Link do meu portfolio">
+          <p class="ajuda">So voce ve esse nome, serve pra voce se organizar</p>
+        </div>
+
+        <!-- BLOCO 1: O GATILHO -->
+        <div class="bloco">
+          <div class="bloco-topo">
+            <div class="bloco-num">1</div>
+            <h2>O gatilho</h2>
+          </div>
+          <p class="subtitulo">O que faz a DM disparar</p>
+
+          <div class="linha-campos">
+            <label class="rotulo">Palavras que ativam</label>
+            <div class="caixa-tags" id="caixaPalavras">
+              <input id="edPalavraInput" placeholder="Digite e aperte Enter">
+            </div>
+            <p class="ajuda">Cada palavra vira uma etiqueta. Aperte Enter pra adicionar.</p>
+          </div>
+
+          <div class="linha-campos">
+            <label class="interruptor">
+              <input type="checkbox" id="edQualquer">
+              <span class="trilho"></span>
+              <span class="texto">Qualquer palavra ativa</span>
+            </label>
+            <p class="ajuda">Ligado, qualquer comentario no post dispara (ignora as palavras acima)</p>
+          </div>
+
+          <div class="linha-campos">
+            <label class="rotulo">Em quais posts</label>
+            <div id="edPosts"></div>
+            <p class="ajuda">Nenhum escolhido = vale pra todos os seus posts</p>
+          </div>
+
+          <div class="linha-campos">
+            <label class="rotulo" for="edRespostaPublica">Resposta no comentario</label>
+            <textarea class="campo" id="edRespostaPublica" style="min-height:56px"
+                      placeholder="Ex: te chamei no direct 💌"></textarea>
+            <div id="edPubVariacoes"></div>
+            <button class="btn btn-fantasma btn-pequeno" id="btnAddVariacao"
+                    style="margin-top:7px">＋ variacao (A/B)</button>
+            <p class="ajuda">Com variacoes, o sistema alterna entre elas pra parecer mais natural</p>
+          </div>
+        </div>
+
+        <!-- BLOCO 2: A RESPOSTA -->
+        <div class="bloco">
+          <div class="bloco-topo">
+            <div class="bloco-num">2</div>
+            <h2>A resposta</h2>
+          </div>
+          <p class="subtitulo">O que a pessoa recebe na DM</p>
+
+          <div class="linha-campos">
+            <label class="rotulo" for="edMensagem">Sua mensagem</label>
+            <textarea class="campo" id="edMensagem"
+                      placeholder="Ex: oii! que bom que voce quer 🫶 toca no botao aqui embaixo"></textarea>
+            <div class="emojis" id="barraEmojis"></div>
+          </div>
+
+          <div class="linha-campos">
+            <label class="interruptor">
+              <input type="checkbox" id="edTemBotao" checked>
+              <span class="trilho"></span>
+              <span class="texto">Botao na mensagem</span>
+            </label>
+          </div>
+
+          <div id="areaBotao">
+            <div class="linha-campos">
+              <label class="rotulo" for="edTextoBotao">Texto do botao</label>
+              <!-- de proposito SEM maxlength: se a pessoa colar um link aqui por engano,
+                   o campo precisa segurar o link inteiro pra o sistema conseguir mover
+                   ele pro campo certo. O corte nas 20 letras acontece ao salvar. -->
+              <input class="campo" id="edTextoBotao" placeholder="Ex: Quero o link">
+              <p class="ajuda" id="ajudaBotao"><span id="contaBotao">0</span>/20 letras. O Instagram
+                corta o titulo do botao em 20 letras.</p>
+            </div>
+
+            <div class="linha-campos">
+              <label class="rotulo" for="edAcaoBotao">O que o botao faz quando ela toca</label>
+              <select class="campo" id="edAcaoBotao">
+                <option value="link">Um link (leva a pessoa pra um site)</option>
+                <option value="conversa">Continua a conversa</option>
+              </select>
+            </div>
+
+            <!-- o campo GRANDE do link -->
+            <div class="linha-campos" id="areaLink">
+              <label class="rotulo" for="edLink">O link completo</label>
+              <textarea class="campo campo-link" id="edLink"
+                        placeholder="https://exemplo.com/a-sua-pagina"></textarea>
+              <p class="ajuda">Cole o link inteiro aqui, por maior que seja. A pessoa ve so o nome
+                bonito do botao, o link fica invisivel pra ela.</p>
+            </div>
+
+            <!-- o construtor de sequencia -->
+            <div id="areaConversa" style="display:none">
+              <div class="passo-ref">
+                <span class="rotulo" style="margin:0">Mensagem 1 (ja escrita la em cima)</span>
+                <div class="texto-ref" id="refMensagem1">...</div>
+              </div>
+              <div id="listaPassos"></div>
+              <button class="btn btn-pequeno" id="btnAddPasso">＋ Adicionar mensagem</button>
+            </div>
+          </div>
+
+          <div class="linha-campos" style="margin-top:15px">
+            <label class="rotulo">Anexar um arquivo (opcional)</label>
+            <select class="campo" id="edAnexo">
+              <option value="">Nenhum arquivo</option>
+            </select>
+            <p class="ajuda">PDF, audio, foto ou video da sua biblioteca</p>
+          </div>
+        </div>
+
+        <div style="height:40px"></div>
+      </div>
+    </div>
+
+    <!-- A PREVIA AO VIVO -->
+    <aside class="editor-previa">
+      <span class="rotulo" style="align-self:flex-start">Previa: como chega pra ela</span>
+      <div class="celular">
+        <div class="celular-topo">
+          <div class="celular-foto"></div>
+          <div class="celular-nome">voce</div>
+        </div>
+        <div class="celular-corpo" id="previaCorpo"></div>
+        <div class="celular-rodape">Mensagem...</div>
+      </div>
+      <p class="ajuda" style="text-align:center; margin-top:12px; max-width:280px">
+        Botao sem destino nao aparece aqui, porque tambem nao e enviado de verdade.
+      </p>
+    </aside>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
