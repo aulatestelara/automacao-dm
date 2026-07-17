@@ -577,3 +577,61 @@ select.campo { cursor: pointer; }
 .tabela .pessoa { color: var(--destaque); font-weight: 550; text-decoration: none; }
 .tabela .pessoa:hover { text-decoration: underline; }
 .tabela .palavras { flex-wrap: nowrap; }
+
+/* =====================================================================
+   A ABA DE METRICAS
+   ===================================================================== */
+.barra-filtros {
+  display: flex; align-items: center; gap: 12px;
+  flex-wrap: wrap; margin-bottom: 18px;
+}
+.barra-filtros .pilulas { flex: 1; }
+
+.pilulas { display: flex; gap: 6px; flex-wrap: wrap; }
+.pilula {
+  font-family: var(--fonte); font-size: 13px; font-weight: 500;
+  padding: 6px 14px; border-radius: 999px;
+  border: 1px solid var(--borda); background: var(--branco);
+  color: var(--texto-fraco); cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+  white-space: nowrap;
+}
+.pilula:hover { border-color: var(--borda-forte); color: var(--texto); }
+.pilula.ativa {
+  background: var(--destaque); border-color: var(--destaque); color: #fff;
+}
+.pilula-pequena { font-size: 12px; padding: 4px 11px; }
+
+/* dado que o Instagram nao devolve: tracinho, nunca zero */
+.sem-dado { color: var(--borda-forte); }
+
+/* os melhores posts */
+.grade-melhores {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 12px;
+}
+.post-card {
+  border: 1px solid var(--borda); border-radius: var(--raio);
+  overflow: hidden; background: var(--branco);
+  text-decoration: none; color: inherit; display: block;
+  transition: border-color .12s, transform .12s, box-shadow .12s;
+}
+.post-card:hover {
+  border-color: var(--destaque); transform: translateY(-2px);
+  box-shadow: var(--sombra-g);
+}
+.post-card-foto {
+  aspect-ratio: 1; background: var(--fundo); position: relative;
+  display: flex; align-items: center; justify-content: center; font-size: 24px;
+}
+.post-card-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.post-tipo {
+  position: absolute; top: 6px; right: 7px;
+  background: rgba(0, 0, 0, .6); color: #fff;
+  font-size: 10px; padding: 2px 6px; border-radius: 5px;
+}
+.post-card-nums {
+  display: flex; flex-wrap: wrap; gap: 4px 9px;
+  padding: 9px 10px; font-size: 11.5px; color: var(--texto-fraco);
+  font-variant-numeric: tabular-nums;
+}

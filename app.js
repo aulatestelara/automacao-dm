@@ -227,6 +227,29 @@ function barrinhas(serie, rotulo) {
   }).join('')}</div>`
 }
 
+// O periodo escolhido (0 = tudo) e a ordem do ranking. Ficam guardados
+// aqui pra sobreviver a troca de aba.
+let periodoMetricas = 30
+let ordemPosts = 'melhores'
+let dadosMetricas = null
+
+const PERIODOS = [
+  { dias: 7,  nome: '7 dias' },
+  { dias: 30, nome: '30 dias' },
+  { dias: 90, nome: '90 dias' },
+  { dias: 0,  nome: 'Tudo' },
+]
+
+const ORDENS = [
+  { chave: 'melhores',    nome: 'Melhores',        campo: 'pontos' },
+  { chave: 'curtidos',    nome: 'Mais curtidos',   campo: 'curtidas' },
+  { chave: 'comentados',  nome: 'Mais comentados', campo: 'comentarios' },
+  { chave: 'salvos',      nome: 'Mais salvos',     campo: 'salvos' },
+  { chave: 'vistos',      nome: 'Mais vistos',     campo: 'views' },
+]
+
+const num = (n) => (n ?? 0).toLocaleString('pt-BR')
+
 async function carregarMetricas() {
   if (!sb) {
     metricasVazias('Configure o Supabase e o Instagram pra ver os numeros aqui')
@@ -236,7 +259,9 @@ async function carregarMetricas() {
   $('#painelMetricas').innerHTML = '<p class="subtitulo">Carregando...</p>'
 
   try {
-    const { data, error } = await sb.functions.invoke('ig-insights')
+    const { data, error } = await sb.functions.invoke('ig-insights', {
+      body: { dias: periodoMetricas },
+    })
     if (error || !data?.conectado) {
       metricasVazias(data?.motivo)
       return
@@ -249,38 +274,163 @@ async function carregarMetricas() {
       leads = r.count ?? 0
     } catch { /* segue com zero */ }
 
-    $('#painelMetricas').innerHTML = `
-      <div class="grade-cartoes">
-        <div class="cartao">
-          <span class="rotulo">Seguidores</span>
-          <div class="numerao">${(data.conta?.seguidores ?? 0).toLocaleString('pt-BR')}</div>
-          <p class="ajuda">@${esc(data.conta?.username ?? '')}</p>
-        </div>
-        <div class="cartao">
-          <span class="rotulo">Novos em 15 dias</span>
-          <div class="numerao">${data.novos_no_periodo ?? 0}</div>
-          <p class="ajuda">Somando os novos seguidores por dia</p>
-        </div>
-        <div class="cartao">
-          <span class="rotulo">Leads captados</span>
-          <div class="numerao">${leads}</div>
-          <p class="ajuda">Pessoas que a automacao trouxe</p>
-        </div>
-      </div>
-
-      <div class="cartao" style="margin-bottom:14px">
-        <span class="rotulo">Novos seguidores por dia</span>
-        ${barrinhas(data.novos_seguidores, 'novos')}
-      </div>
-
-      <div class="cartao">
-        <span class="rotulo">Alcance por dia</span>
-        ${barrinhas(data.alcance, 'de alcance')}
-      </div>`
+    dadosMetricas = { ...data, leads }
+    desenharMetricas()
   } catch (e) {
     console.warn('metricas indisponiveis:', e)
     metricasVazias()
   }
+}
+
+function desenharMetricas() {
+  const d = dadosMetricas
+  if (!d) return
+
+  const r = d.resumo ?? {}
+  const rotuloPeriodo = PERIODOS.find((p) => p.dias === d.periodo)?.nome ?? ''
+
+  // Metrica que o Instagram negou vem null, e null nao e zero. Mostrar "0"
+  // pra dado que nao existe e mentira; entao aparece um tracinho.
+  const numeroOuTraco = (v) => (v === null || v === undefined)
+    ? '<span class="sem-dado">—</span>' : num(v)
+
+  const filtros = PERIODOS.map((p) => `
+    <button class="pilula ${p.dias === periodoMetricas ? 'ativa' : ''}"
+            data-periodo="${p.dias}">${p.nome}</button>`).join('')
+
+  $('#painelMetricas').innerHTML = `
+    <div class="barra-filtros">
+      <div class="pilulas">${filtros}</div>
+      <button class="btn btn-pequeno" id="btnAtualizarMetricas">↻ Atualizar</button>
+    </div>
+
+    <div class="grade-cartoes">
+      <div class="cartao">
+        <span class="rotulo">Seguidores</span>
+        <div class="numerao">${num(r.seguidores)}</div>
+        <p class="ajuda">@${esc(d.conta?.username ?? '')}</p>
+      </div>
+      <div class="cartao">
+        <span class="rotulo">Novos seguidores</span>
+        <div class="numerao">${num(r.novos_seguidores)}</div>
+        <p class="ajuda">${r.novos_seguidores_limite < (d.periodo || 90)
+          ? `O Instagram so guarda ${r.novos_seguidores_limite} dias disso`
+          : `Nos ultimos ${r.novos_seguidores_limite} dias`}</p>
+      </div>
+      <div class="cartao">
+        <span class="rotulo">Alcance</span>
+        <div class="numerao">${num(r.alcance)}</div>
+        <p class="ajuda">Contas que viram voce</p>
+      </div>
+      <div class="cartao">
+        <span class="rotulo">Contas engajadas</span>
+        <div class="numerao">${numeroOuTraco(r.contas_engajadas)}</div>
+        <p class="ajuda">Curtiram, comentaram ou salvaram</p>
+      </div>
+      <div class="cartao">
+        <span class="rotulo">Interacoes</span>
+        <div class="numerao">${numeroOuTraco(r.interacoes)}</div>
+        <p class="ajuda">Curtidas + comentarios + salvos</p>
+      </div>
+      <div class="cartao">
+        <span class="rotulo">Leads captados</span>
+        <div class="numerao">${num(d.leads)}</div>
+        <p class="ajuda">Pessoas que a automacao trouxe</p>
+      </div>
+    </div>
+
+    <div class="cartao" style="margin-bottom:14px">
+      <span class="rotulo">📈 Alcance por dia
+        ${d.periodo === 0 ? '<span class="ajuda" style="text-transform:none">(o grafico so vai ate 90 dias)</span>' : ''}
+      </span>
+      ${barrinhas(d.alcance, 'de alcance')}
+    </div>
+
+    <div class="cartao" style="margin-bottom:14px">
+      <span class="rotulo">👥 Novos seguidores por dia</span>
+      ${barrinhas(d.novos_seguidores, 'novos')}
+    </div>
+
+    <div class="cartao">
+      <div class="barra-filtros" style="margin-bottom:14px">
+        <span class="rotulo" style="margin:0">🔥 Melhores posts ${rotuloPeriodo ? `(${esc(rotuloPeriodo)})` : ''}</span>
+        <div class="pilulas">
+          ${ORDENS.map((o) => `<button class="pilula pilula-pequena ${o.chave === ordemPosts ? 'ativa' : ''}"
+             data-ordem="${o.chave}">${o.nome}</button>`).join('')}
+        </div>
+      </div>
+      ${desenhaPosts()}
+      ${d.aviso_posts ? `<p class="aviso" style="margin-top:12px">ℹ️ ${esc(d.aviso_posts)}</p>` : ''}
+    </div>`
+
+  $$('#painelMetricas [data-periodo]').forEach((b) => {
+    b.onclick = () => {
+      periodoMetricas = Number(b.dataset.periodo)
+      carregarMetricas()
+    }
+  })
+  $$('#painelMetricas [data-ordem]').forEach((b) => {
+    b.onclick = () => {
+      ordemPosts = b.dataset.ordem
+      desenharMetricas()
+    }
+  })
+  $('#btnAtualizarMetricas').onclick = carregarMetricas
+}
+
+function desenhaPosts() {
+  const d = dadosMetricas
+  const posts = d.posts ?? []
+
+  if (!posts.length) {
+    // Nao ter post no periodo e diferente de nao ter post nenhum. Se a
+    // conta tem posts, o caminho e trocar o filtro, e a tela diz isso.
+    const temPostsFora = (d.conta?.posts ?? 0) > 0
+    return `
+      <div class="vazio" style="padding:36px 20px">
+        <div class="icone">📭</div>
+        <h3>Nenhum post ${d.periodo ? 'nesse periodo' : 'ainda'}</h3>
+        <p>${temPostsFora && d.periodo
+          ? 'Voce tem posts, mas nenhum foi publicado nesse intervalo. Experimente "Tudo".'
+          : 'Publique alguma coisa e os numeros aparecem aqui'}</p>
+        ${temPostsFora && d.periodo
+          ? '<button class="btn btn-pequeno" onclick="verTudoMetricas()">Ver tudo</button>' : ''}
+      </div>`
+  }
+
+  const campo = ORDENS.find((o) => o.chave === ordemPosts)?.campo ?? 'pontos'
+  const lista = [...posts].sort((a, b) => (b[campo] ?? 0) - (a[campo] ?? 0)).slice(0, 12)
+
+  // Ordenar por uma metrica que veio toda zerada so embaralha a lista sem
+  // dizer nada. Melhor avisar que o dado nao existe.
+  const tudoZero = lista.every((p) => !p[campo])
+  const avisoOrdem = tudoZero
+    ? `<p class="aviso" style="margin-bottom:12px">Nenhum post tem
+       "${esc(ORDENS.find((o) => o.chave === ordemPosts)?.nome.toLowerCase() ?? '')}" pra mostrar.
+       A ordem abaixo esta pela data.</p>`
+    : ''
+
+  return avisoOrdem + `<div class="grade-melhores">${lista.map((p) => `
+    <a class="post-card" href="${esc(p.link ?? '#')}" target="_blank" rel="noopener"
+       title="${esc(p.legenda || 'Ver no Instagram')}">
+      <div class="post-card-foto">
+        ${p.thumb ? `<img src="${esc(p.thumb)}" alt="" loading="lazy">` : '<span>📷</span>'}
+        ${p.tipo === 'VIDEO' ? '<span class="post-tipo">▶</span>' : ''}
+        ${p.tipo === 'CAROUSEL_ALBUM' ? '<span class="post-tipo">❏</span>' : ''}
+      </div>
+      <div class="post-card-nums">
+        <span title="curtidas">❤️ ${num(p.curtidas)}</span>
+        <span title="comentarios">💬 ${num(p.comentarios)}</span>
+        ${p.salvos ? `<span title="salvos">🔖 ${num(p.salvos)}</span>` : ''}
+        ${p.views ? `<span title="visualizacoes">👀 ${num(p.views)}</span>` : ''}
+        ${p.alcance ? `<span title="alcance">📣 ${num(p.alcance)}</span>` : ''}
+      </div>
+    </a>`).join('')}</div>`
+}
+
+function verTudoMetricas() {
+  periodoMetricas = 0
+  carregarMetricas()
 }
 
 // ---------------------------------------------------------------------
@@ -1362,5 +1512,6 @@ function iniciar() {
 // deixa essas duas acessiveis pelos botoes escritos no HTML
 window.abrirEditor = abrirEditor
 window.apagarAutomacao = apagarAutomacao
+window.verTudoMetricas = verTudoMetricas
 
 iniciar()
