@@ -150,6 +150,7 @@
       <div class="abas">
         <button class="aba ativa" data-aba="metricas">Metricas</button>
         <button class="aba" data-aba="automacoes">Automacoes</button>
+        <button class="aba" data-aba="interacoes">Interacoes</button>
       </div>
 
       <!-- sub-aba: metricas -->
@@ -165,6 +166,20 @@
           <button class="btn btn-primario" id="btnNovaAutomacao">＋ Nova automacao</button>
         </div>
         <div id="listaAutomacoes"></div>
+      </div>
+
+      <!-- sub-aba: interacoes (a planilha de quem falou com voce) -->
+      <div id="painelInteracoes" style="display:none">
+        <div style="display:flex; align-items:flex-end; margin-bottom:16px; gap:12px; flex-wrap:wrap">
+          <div style="flex:1; min-width:220px">
+            <h2>Suas interacoes</h2>
+            <p class="subtitulo">Todo mundo que ja falou com as suas automacoes</p>
+          </div>
+          <input class="campo campo-busca" id="buscaLeads" placeholder="🔎 Buscar por nome, palavra ou etiqueta">
+          <button class="btn btn-pequeno" id="btnExportarLeads">⬇ Baixar planilha (CSV)</button>
+        </div>
+        <div id="resumoLeads" class="grade-cartoes"></div>
+        <div id="listaLeads"></div>
       </div>
     </section>
   </main>

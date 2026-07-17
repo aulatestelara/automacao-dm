@@ -196,6 +196,11 @@ function trocarAba(aba) {
   $$('.aba').forEach((b) => b.classList.toggle('ativa', b.dataset.aba === aba))
   $('#painelMetricas').style.display = aba === 'metricas' ? '' : 'none'
   $('#painelAutomacoes').style.display = aba === 'automacoes' ? '' : 'none'
+  $('#painelInteracoes').style.display = aba === 'interacoes' ? '' : 'none'
+
+  // As interacoes so vao no banco quando voce abre a aba, pra nao pesar
+  // o carregamento do painel inteiro.
+  if (aba === 'interacoes') carregarInteracoes()
 }
 
 // ---------------------------------------------------------------------
@@ -311,6 +316,34 @@ async function carregarAutomacoes() {
     automacoes = lerAutomacoesLocais()
   }
   desenharAutomacoes()
+
+  // As fotos dos posts vem do Instagram e demoram um pouco. A lista ja
+  // apareceu ali em cima; quando as fotos chegarem, a gente repinta.
+  if (!postsCache) garantirPosts().then(() => desenharAutomacoes())
+}
+
+// A foto do post que a automacao vigia, pra voce bater o olho e saber
+// qual e qual. Sem post escolhido, ela vale pra todos, e isso tambem
+// merece um desenho proprio.
+function miniaturaDoPost(a) {
+  const ids = a.media_ids ?? []
+
+  if (!ids.length) {
+    return `<div class="auto-foto auto-foto-todos" title="Vale pra todos os seus posts">🌐</div>`
+  }
+
+  const post = (postsCache ?? []).find((p) => String(p.id) === String(ids[0]))
+  const sobra = ids.length > 1 ? `<span class="mais">+${ids.length - 1}</span>` : ''
+
+  // Post nao achado = ou os posts ainda nao carregaram, ou ele foi apagado
+  // do Instagram. Nos dois casos, um quadrado neutro e melhor que um X.
+  if (!post?.thumb) {
+    return `<div class="auto-foto auto-foto-vazia" title="Post ${esc(String(ids[0]))}">📷${sobra}</div>`
+  }
+
+  return `<div class="auto-foto" title="${esc(post.legenda || 'Post vinculado')}">
+    <img src="${esc(post.thumb)}" alt="" loading="lazy">${sobra}
+  </div>`
 }
 
 function desenharAutomacoes() {
@@ -335,6 +368,7 @@ function desenharAutomacoes() {
 
     return `
       <div class="linha-auto">
+        ${miniaturaDoPost(a)}
         <div class="info">
           <div class="nome">${esc(a.nome)}</div>
           <div class="palavras">${palavras || '<span class="palavra">sem palavra</span>'}</div>
@@ -346,6 +380,236 @@ function desenharAutomacoes() {
         <button class="btn btn-pequeno btn-perigo" onclick="apagarAutomacao('${a.id}')">🗑</button>
       </div>`
   }).join('')
+}
+
+// ---------------------------------------------------------------------
+// Sub-aba: INTERACOES
+// A planilha de quem ja falou com as suas automacoes.
+// ---------------------------------------------------------------------
+let leads = []
+let buscaLeads = ''
+
+// "ha 5 min", "ontem", "12/07". Data crua nao diz nada pra quem olha rapido.
+function quandoFoi(iso) {
+  if (!iso) return '<span class="fraco">nunca</span>'
+  const d = new Date(iso)
+  const min = Math.floor((Date.now() - d.getTime()) / 60000)
+  if (min < 1) return 'agora'
+  if (min < 60) return `ha ${min} min`
+  const horas = Math.floor(min / 60)
+  if (horas < 24) return `ha ${horas}h`
+  const dias = Math.floor(horas / 24)
+  if (dias === 1) return 'ontem'
+  if (dias < 7) return `ha ${dias} dias`
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+}
+
+async function carregarInteracoes() {
+  const alvo = $('#listaLeads')
+
+  if (!sb) {
+    $('#resumoLeads').innerHTML = ''
+    alvo.innerHTML = `
+      <div class="vazio">
+        <div class="icone">📋</div>
+        <h3>Conecte o Supabase pra ver as interacoes</h3>
+        <p>Aqui vai aparecer todo mundo que comentou e recebeu a sua DM</p>
+      </div>`
+    return
+  }
+
+  alvo.innerHTML = '<p class="subtitulo">Carregando...</p>'
+
+  try {
+    // Tres buscas de uma vez: as pessoas, as entregas (pra contar quantas
+    // DMs cada uma recebeu) e as automacoes (pra mostrar o nome, nao o id).
+    const [rLeads, rEntregas] = await Promise.all([
+      sb.from('ig_leads').select('*').order('last_dm_at', { ascending: false, nullsFirst: false }),
+      sb.from('ig_deliveries').select('ig_user_id, status, ts'),
+    ])
+
+    if (rLeads.error) throw rLeads.error
+
+    const entregas = rEntregas.data ?? []
+    const contagem = {}
+    for (const e of entregas) {
+      if (e.status !== 'ok') continue
+      contagem[e.ig_user_id] = (contagem[e.ig_user_id] ?? 0) + 1
+    }
+
+    if (!automacoes.length) await carregarAutomacoes()
+    const nomeAuto = {}
+    for (const a of automacoes) nomeAuto[a.id] = a.nome
+
+    leads = (rLeads.data ?? []).map((l) => ({
+      ...l,
+      interacoes: contagem[l.ig_user_id] ?? 0,
+      automacao: nomeAuto[l.automation_id] ?? '',
+    }))
+  } catch (e) {
+    console.error('[interacoes]', e)
+    $('#resumoLeads').innerHTML = ''
+    alvo.innerHTML = `<p class="aviso">Nao consegui carregar as interacoes agora.
+      Recarregue a pagina pra tentar de novo.</p>`
+    return
+  }
+
+  desenharInteracoes()
+}
+
+function leadsFiltrados() {
+  const q = buscaLeads.trim().toLowerCase()
+  if (!q) return leads
+  return leads.filter((l) => [
+    l.username, l.last_keyword, l.email, l.telefone, l.automacao,
+    ...(l.tags ?? []),
+  ].filter(Boolean).join(' ').toLowerCase().includes(q))
+}
+
+function desenharInteracoes() {
+  const alvo = $('#listaLeads')
+  const lista = leadsFiltrados()
+
+  // O resumo de cima: os numeros que valem olhar antes da planilha.
+  const seteDias = Date.now() - 7 * 24 * 60 * 60 * 1000
+  const recentes = leads.filter((l) => l.last_dm_at && new Date(l.last_dm_at).getTime() > seteDias).length
+  const comContato = leads.filter((l) => l.email || l.telefone).length
+  const clicaram = leads.filter((l) => l.link_sent).length
+
+  $('#resumoLeads').innerHTML = `
+    <div class="cartao">
+      <span class="rotulo">Pessoas</span>
+      <div class="numerao">${leads.length}</div>
+      <p class="ajuda">Ja falaram com voce</p>
+    </div>
+    <div class="cartao">
+      <span class="rotulo">Nos ultimos 7 dias</span>
+      <div class="numerao">${recentes}</div>
+      <p class="ajuda">Movimento recente</p>
+    </div>
+    <div class="cartao">
+      <span class="rotulo">Receberam o link</span>
+      <div class="numerao">${clicaram}</div>
+      <p class="ajuda">Chegaram ate o final da conversa</p>
+    </div>
+    <div class="cartao">
+      <span class="rotulo">Deixaram contato</span>
+      <div class="numerao">${comContato}</div>
+      <p class="ajuda">Email ou telefone na conversa</p>
+    </div>`
+
+  if (!leads.length) {
+    alvo.innerHTML = `
+      <div class="vazio">
+        <div class="icone">📋</div>
+        <h3>Ninguem interagiu ainda</h3>
+        <p>Assim que alguem comentar a sua palavra, a pessoa aparece aqui</p>
+      </div>`
+    return
+  }
+
+  if (!lista.length) {
+    alvo.innerHTML = `<div class="vazio"><div class="icone">🔎</div>
+      <h3>Nada encontrado</h3><p>Ninguem bate com "${esc(buscaLeads)}"</p></div>`
+    return
+  }
+
+  alvo.innerHTML = `
+    <div class="tabela-rolo">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th>Pessoa</th>
+            <th>Origem</th>
+            <th>Palavra</th>
+            <th>Automacao</th>
+            <th>Contato</th>
+            <th>Etiquetas</th>
+            <th class="num">Interacoes</th>
+            <th>Onde parou</th>
+            <th>Ultima vez</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${lista.map((l) => {
+            const origem = l.last_source === 'comment'
+              ? '<span class="palavra">💬 comentario</span>'
+              : l.last_source === 'dm'
+                ? '<span class="palavra">✉️ direct</span>'
+                : `<span class="palavra">${esc(l.last_source ?? '?')}</span>`
+
+            const contato = [
+              l.email ? `<a href="mailto:${esc(l.email)}">${esc(l.email)}</a>` : '',
+              l.telefone ? esc(l.telefone) : '',
+            ].filter(Boolean).join('<br>') || '<span class="fraco">nao deixou</span>'
+
+            const tags = (l.tags ?? []).length
+              ? l.tags.map((t) => `<span class="palavra">${esc(t)}</span>`).join(' ')
+              : '<span class="fraco">sem etiqueta</span>'
+
+            const parou = l.link_sent
+              ? '<span class="selo selo-ok">✓ recebeu o link</span>'
+              : l.flow_step
+                ? `<span class="selo">passo ${esc(String(l.flow_step))}</span>`
+                : '<span class="fraco">so a 1a mensagem</span>'
+
+            return `
+              <tr>
+                <td>
+                  <a class="pessoa" href="https://instagram.com/${esc(l.username ?? '')}"
+                     target="_blank" rel="noopener">@${esc(l.username ?? 'sem nome')}</a>
+                </td>
+                <td>${origem}</td>
+                <td>${l.last_keyword ? `<span class="palavra">${esc(l.last_keyword)}</span>`
+                                     : '<span class="fraco">-</span>'}</td>
+                <td>${l.automacao ? esc(l.automacao) : '<span class="fraco">apagada</span>'}</td>
+                <td>${contato}</td>
+                <td><div class="palavras">${tags}</div></td>
+                <td class="num">${l.interacoes}</td>
+                <td>${parou}</td>
+                <td class="fraco">${quandoFoi(l.last_dm_at)}</td>
+              </tr>`
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <p class="ajuda" style="margin-top:10px">
+      Mostrando ${lista.length} de ${leads.length} ${leads.length === 1 ? 'pessoa' : 'pessoas'}
+    </p>`
+}
+
+// Baixa o que esta na tela (ja filtrado) como planilha de verdade.
+function exportarLeads() {
+  const lista = leadsFiltrados()
+  if (!lista.length) {
+    alert('Nao tem nada pra baixar ainda.')
+    return
+  }
+
+  const colunas = ['usuario', 'id_instagram', 'origem', 'palavra', 'automacao', 'email',
+                   'telefone', 'etiquetas', 'interacoes', 'recebeu_link', 'ultima_vez']
+
+  // Ponto e virgula, porque o Excel em portugues abre assim sem baguncar.
+  const celula = (v) => {
+    const s = String(v ?? '')
+    return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+
+  const linhas = lista.map((l) => [
+    l.username ?? '', l.ig_user_id ?? '', l.last_source ?? '', l.last_keyword ?? '',
+    l.automacao ?? '', l.email ?? '', l.telefone ?? '', (l.tags ?? []).join(', '),
+    l.interacoes, l.link_sent ? 'sim' : 'nao',
+    l.last_dm_at ? new Date(l.last_dm_at).toLocaleString('pt-BR') : '',
+  ].map(celula).join(';'))
+
+  // O ﻿ (BOM) e o que faz o Excel entender acento. Sem ele, sai "JoÃ£o".
+  const csv = '﻿' + [colunas.join(';'), ...linhas].join('\n')
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `interacoes-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 async function apagarAutomacao(id) {
@@ -593,6 +857,20 @@ function desenharVariacoes() {
 // ---------------------------------------------------------------------
 // O seletor de posts
 // ---------------------------------------------------------------------
+// Busca os posts uma vez so e guarda. O editor e a lista de automacoes
+// usam os dois a mesma lista.
+async function garantirPosts() {
+  if (postsCache) return postsCache
+  if (!sb) return (postsCache = [])
+  try {
+    const { data, error } = await sb.functions.invoke('ig-media')
+    postsCache = (error || !data?.conectado) ? [] : (data.posts ?? [])
+  } catch {
+    postsCache = []
+  }
+  return postsCache
+}
+
 async function carregarPosts() {
   const alvo = $('#edPosts')
 
@@ -604,12 +882,7 @@ async function carregarPosts() {
 
   if (!postsCache) {
     alvo.innerHTML = '<p class="subtitulo">Buscando seus posts...</p>'
-    try {
-      const { data, error } = await sb.functions.invoke('ig-media')
-      postsCache = (error || !data?.conectado) ? [] : (data.posts ?? [])
-    } catch {
-      postsCache = []
-    }
+    await garantirPosts()
   }
 
   if (!postsCache.length) {
@@ -996,6 +1269,11 @@ function iniciar() {
 
   // editor
   $('#btnNovaAutomacao').addEventListener('click', () => abrirEditor())
+  $('#btnExportarLeads').addEventListener('click', exportarLeads)
+  $('#buscaLeads').addEventListener('input', (e) => {
+    buscaLeads = e.target.value
+    desenharInteracoes()
+  })
   $('#btnFecharEditor').addEventListener('click', fecharEditor)
   $('#btnSalvar').addEventListener('click', salvar)
   $('#btnAddPasso').addEventListener('click', addPasso)
