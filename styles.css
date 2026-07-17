@@ -305,7 +305,7 @@ select.campo { cursor: pointer; }
    --------------------------------------------------------------------- */
 .grafico { display: flex; align-items: flex-end; gap: 4px; height: 110px; padding-top: 8px; }
 .barra {
-  flex: 1; background: var(--destaque-fraco);
+  flex: 1; background: #A8C3F7;
   border-radius: 3px 3px 0 0; min-height: 3px;
   position: relative; cursor: default; transition: background .12s;
 }
