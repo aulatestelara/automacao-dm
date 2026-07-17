@@ -13,6 +13,6 @@
 // =====================================================================
 
 window.CONFIG = {
-  SUPABASE_URL: 'SEU_VALOR_AQUI',      // ex: https://abcdefgh.supabase.co
-  SUPABASE_ANON_KEY: 'SEU_VALOR_AQUI', // a chave "anon public"
+  SUPABASE_URL: 'https://plobcylzihxgqfsrtnno.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsb2JjeWx6aWh4Z3Fmc3J0bm5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMzYyOTQsImV4cCI6MjA5OTgxMjI5NH0.Ln5VDm1BLA3P1c2xpcxUD_udCwsBfQiF00B5AXC932M',
 }
